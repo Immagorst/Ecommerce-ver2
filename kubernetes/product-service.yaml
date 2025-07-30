@@ -1,0 +1,39 @@
+# kubernetes/product-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: product-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: product-service
+  template:
+    metadata:
+      labels:
+        app: product-service
+    spec:
+      containers:
+        - name: product-service
+          # Tên image phải khớp với tên được tạo bởi docker-compose build
+          image: ecomerce-ver2-product-service
+          # Dùng image có sẵn local, không kéo từ internet
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: MONGO_URI
+              # Kết nối đến service của MongoDB đã tạo ở bước trước
+              value: "mongodb://mongoadmin:admin123@product-service-db:27017/?authSource=admin"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: product-service
+spec:
+  selector:
+    app: product-service
+  ports:
+    - protocol: TCP
+      port: 8080
+      targetPort: 8080

@@ -1,0 +1,75 @@
+# kubernetes/order-service.yaml
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-db
+spec:
+  selector:
+    app: order-postgres-db
+  ports:
+    - protocol: TCP
+      port: 5432
+      targetPort: 5432
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-postgres-db-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-postgres-db
+  template:
+    metadata:
+      labels:
+        app: order-postgres-db
+    spec:
+      containers:
+        - name: postgres
+          image: postgres:14-alpine
+          ports:
+            - containerPort: 5432
+          env:
+            - name: POSTGRES_USER
+              value: "order_user"
+            - name: POSTGRES_PASSWORD
+              value: "order_password"
+            - name: POSTGRES_DB
+              value: "order_db"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service
+spec:
+  selector:
+    app: order-service
+  ports:
+    - protocol: TCP
+      port: 8000
+      targetPort: 8000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+        - name: order-service
+          image: ecomerce-ver2-order-service
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              value: "postgresql://order_user:order_password@order-service-db/order_db"

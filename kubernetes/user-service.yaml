@@ -1,0 +1,45 @@
+# kubernetes/user-service.yaml
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: user-service-deployment
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: user-service
+  template:
+    metadata:
+      labels:
+        app: user-service
+    spec:
+      containers:
+        - name: user-service
+          # Tên image phải khớp với tên được tạo bởi docker-compose build
+          image: ecomerce-ver2-user-service
+          # Rất quan trọng: Dùng image có sẵn local, không kéo từ internet
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 3000
+          env:
+            - name: DATABASE_HOST
+              # Kết nối đến service của database đã tạo ở bước trước
+              value: "user-service-db"
+            - name: POSTGRES_USER
+              value: "admin"
+            - name: POSTGRES_PASSWORD
+              value: "admin"
+            - name: POSTGRES_DB
+              value: "user_db"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: user-service # Tên service để các service khác (như API Gateway) kết nối
+spec:
+  selector:
+    app: user-service
+  ports:
+    - protocol: TCP
+      port: 3000
+      targetPort: 3000

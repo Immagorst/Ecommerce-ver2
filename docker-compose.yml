@@ -1,0 +1,144 @@
+# docker-compose.yml
+
+services:
+  # User Service and its Database
+  user-service-db:
+    image: postgres:14-alpine
+    container_name: user_service_db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: user_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  # ADD THIS SERVICE BACK
+  user-service:
+    container_name: user_service
+    build:
+      context: ./user-service
+      dockerfile: Dockerfile
+    ports:
+      - "3000:3000"
+    depends_on:
+      - user-service-db
+    environment:
+      POSTGRES_USER: admin
+      POSTGRES_PASSWORD: admin # <-- Phải khớp với password của user-service-db
+      POSTGRES_DB: user_db
+      DATABASE_HOST: user-service-db
+
+  # Product Service and its Database
+  product-service-db:
+    image: mongo:latest
+    container_name: product_service_db
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: mongoadmin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    ports:
+      - "27018:27017" # <-- CORRECTED PORT MAPPING
+    volumes:
+      - mongo_data:/data/db
+    restart: unless-stopped
+
+  # ADD THIS SERVICE BACK
+  product-service:
+    container_name: product_service
+    build:
+      context: ./product-service
+    ports:
+      - "8080:8080"
+    depends_on:
+      - product-service-db
+    environment:
+      MONGO_URI: "mongodb://mongoadmin:admin123@product-service-db:27017/?authSource=admin"
+
+  # Kong API Gateway and its Database
+  kong-db:
+    image: postgres:13
+    container_name: kong_db
+    environment:
+      POSTGRES_USER: kong
+      POSTGRES_PASSWORD: kong
+      POSTGRES_DB: kong
+    volumes:
+      - kong_postgres_data:/var/lib/postgresql/data
+
+  kong-migrations:
+    image: kong:latest
+    depends_on:
+      - kong-db
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+    command: "kong migrations bootstrap"
+
+  kong:
+    image: kong:latest
+    container_name: kong_gateway
+    depends_on:
+      - kong-migrations
+      - user-service
+      - product-service
+      - cart-service
+      - order-service
+    environment:
+      KONG_DATABASE: postgres
+      KONG_PG_HOST: kong-db
+      KONG_PG_USER: kong
+      KONG_PG_PASSWORD: kong
+      KONG_PROXY_ACCESS_LOG: /dev/stdout
+      KONG_ADMIN_ACCESS_LOG: /dev/stdout
+      KONG_PROXY_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_ERROR_LOG: /dev/stderr
+      KONG_ADMIN_LISTEN: 0.0.0.0:8001, 0.0.0.0:8444 ssl
+    ports:
+      - "8000:8000"
+      - "8443:8443"
+      - "8001:8001"
+      - "8444:8444"
+  cart-service-db:
+    image: redis:7-alpine
+    container_name: cart_service_db
+    ports:
+      - "6379:6379"
+    restart: unless-stopped
+  cart-service:
+    container_name: cart_service
+    build:
+      context: ./cart-service
+    ports:
+      - "3001:3001"
+    depends_on:
+      - cart-service-db
+  order-service-db:
+    image: postgres:14-alpine
+    container_name: order_service_db
+    environment:
+      POSTGRES_USER: order_user
+      POSTGRES_PASSWORD: order_password
+      POSTGRES_DB: order_db
+    ports:
+      - "5433:5432" # Dùng cổng 5433 để tránh trùng với user-service-db
+    volumes:
+      - order_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+  order-service:
+    container_name: order_service
+    build:
+      context: ./order-service
+    ports:
+      - "8002:8000" # Dùng cổng 8002 của máy host
+    depends_on:
+      - order-service-db
+# The top-level volumes block defines the persistent storage
+volumes:
+  postgres_data:
+  mongo_data:
+  kong_postgres_data: # <-- CORRECTED SYNTAX
+  order_postgres_data:
