@@ -1,0 +1,34 @@
+# .github/workflows/deploy-k8s.yaml
+
+name: Deploy to Kubernetes
+
+# Chạy workflow này khi có push vào nhánh main
+on:
+  push:
+    branches:
+      - "main"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      # Bước 1: Checkout mã nguồn
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      # Bước 2: Cấu hình kubectl
+      - name: Set up Kubeconfig
+        uses: azure/k8s-set-context@v3
+        with:
+          method: kubeconfig
+          kubeconfig: ${{ secrets.KUBE_CONFIG }}
+
+      # Bước 3: Deploy các service đã thay đổi
+      # Lệnh này sẽ cập nhật image của deployment và áp dụng lại manifest
+      # Nó tự động lấy phiên bản mới nhất từ Docker Hub
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl set image deployment/user-service-deployment user-service=${{ secrets.DOCKERHUB_USERNAME }}/user-service:latest
+          kubectl set image deployment/product-service-deployment product-service=${{ secrets.DOCKERHUB_USERNAME }}/product-service:latest
+          # Thêm các lệnh `kubectl set image` tương tự cho cart-service và order-service ở đây

@@ -16,7 +16,7 @@ spec:
       containers:
         - name: user-service
           # Tên image phải khớp với tên được tạo bởi docker-compose build
-          image: ecomerce-ver2-user-service
+          image: nmh3105/user-service:latest
           # Rất quan trọng: Dùng image có sẵn local, không kéo từ internet
           imagePullPolicy: IfNotPresent
           ports:
